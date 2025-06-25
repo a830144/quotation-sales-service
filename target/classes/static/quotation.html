@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quotation Builder with Price Guide</title>
+</head>
+<body>
+  <h2>Quotation Builder</h2>
+
+  <!-- Product Dropdown -->
+  <label for="productSelect">Select Product:</label>
+  <select id="productSelect">
+    <option value="">-- Select a product --</option>
+  </select>
+
+  <!-- Customer Dropdown -->
+  <label for="customerSelect" style="margin-left: 20px;">Select Customer:</label>
+  <select id="customerSelect" disabled>
+    <option value="">-- Select a customer --</option>
+  </select>
+
+  <div id="priceInfo" style="margin-top:20px;">
+    <h3>Price Information</h3>
+    <div>
+      <strong>Standard Price:</strong>
+      <span id="stdPrice">-</span> <span id="stdCurrency"></span>
+      (Valid: <span id="stdValidFrom">-</span> to <span id="stdValidTo">-</span>)
+    </div>
+    <div style="margin-top:10px;">
+      <strong>Customer Price:</strong>
+      <span id="custPrice">-</span> <span id="custCurrency"></span>
+      (Valid: <span id="custValidFrom">-</span> to <span id="custValidTo">-</span>)
+    </div>
+    <div style="margin-top:15px; font-weight: bold; color: green;" id="suggestedSection">
+      Suggested Price: <span id="suggestedPrice">-</span> <span id="suggestedCurrency"></span>
+    </div>
+    <div style="color:red; margin-top:5px;" id="priceWarning"></div>
+  </div>
+
+  <div style="margin-top:30px;">
+    <button onclick="addQuoteItem()">Add to Quotation</button>
+  </div>
+
+  <div style="margin-top:30px;">
+    <h3>Quotation Items</h3>
+    <table border="1" width="800" id="itemTable">
+      <thead>
+        <tr>
+          <th>Product ID</th>
+          <th>Final Price</th>
+          <th>Currency</th>
+          <th>Quantity</th>
+          <th>Subtotal</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="itemTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const productSelect = document.getElementById('productSelect');
+    const customerSelect = document.getElementById('customerSelect');
+
+    const stdPriceSpan = document.getElementById('stdPrice');
+    const stdCurrencySpan = document.getElementById('stdCurrency');
+    const stdValidFromSpan = document.getElementById('stdValidFrom');
+    const stdValidToSpan = document.getElementById('stdValidTo');
+
+    const custPriceSpan = document.getElementById('custPrice');
+    const custCurrencySpan = document.getElementById('custCurrency');
+    const custValidFromSpan = document.getElementById('custValidFrom');
+    const custValidToSpan = document.getElementById('custValidTo');
+
+    const suggestedPriceSpan = document.getElementById('suggestedPrice');
+    const suggestedCurrencySpan = document.getElementById('suggestedCurrency');
+    const priceWarningDiv = document.getElementById('priceWarning');
+
+    const itemTableBody = document.getElementById('itemTableBody');
+
+    let stdPriceCache = null;
+    let items = [];
+
+    async function loadProducts() {
+      const res = await fetch('http://localhost:8080/products');
+      const products = await res.json();
+      products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.id} - ${p.name}`;
+        productSelect.appendChild(opt);
+      });
+    }
+
+    async function loadCustomers() {
+      const res = await fetch('http://localhost:8081/customers');
+      const customers = await res.json();
+      customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.id} - ${c.name}`;
+        customerSelect.appendChild(opt);
+      });
+    }
+
+    async function fetchStandardPrice(productId) {
+      try {
+        const res = await fetch(`http://localhost:8082/priceguide/standard-prices/priceguide/${productId}`);
+        return res.ok ? await res.json() : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchCustomerPrice(productId, customerId) {
+      try {
+        const res = await fetch(`http://localhost:8082/priceguide/customer-prices/${productId}/${customerId}`);
+        return res.ok ? await res.json() : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function displayStandardPrice(data) {
+      if (!data) {
+        stdPriceSpan.textContent = '-';
+        stdCurrencySpan.textContent = '';
+        stdValidFromSpan.textContent = '-';
+        stdValidToSpan.textContent = '-';
+        stdPriceCache = null;
+        return;
+      }
+      stdPriceSpan.textContent = data.price.toFixed(2);
+      stdCurrencySpan.textContent = data.currency || 'USD';
+      stdValidFromSpan.textContent = data.startDate || '-';
+      stdValidToSpan.textContent = data.endDate || '-';
+      stdPriceCache = data;
+    }
+
+    function displayCustomerPrice(data) {
+      if (!data) {
+        custPriceSpan.textContent = '-';
+        custCurrencySpan.textContent = '';
+        custValidFromSpan.textContent = '-';
+        custValidToSpan.textContent = '-';
+        return false;
+      }
+      custPriceSpan.textContent = data.price.toFixed(2);
+      custCurrencySpan.textContent = data.currency || 'USD';
+      custValidFromSpan.textContent = data.validFrom || '-';
+      custValidToSpan.textContent = data.validTo || '-';
+      return true;
+    }
+
+    function updateSuggestedPrice(custData, stdData) {
+      priceWarningDiv.textContent = '';
+      if (custData) {
+        suggestedPriceSpan.textContent = custData.price.toFixed(2);
+        suggestedCurrencySpan.textContent = custData.currency || 'USD';
+      } else if (stdData) {
+        suggestedPriceSpan.textContent = stdData.price.toFixed(2);
+        suggestedCurrencySpan.textContent = stdData.currency || 'USD';
+      } else {
+        suggestedPriceSpan.textContent = '-';
+        suggestedCurrencySpan.textContent = '';
+        priceWarningDiv.textContent = '⚠️ No standard or customer price found. Please configure in Price Guide.';
+      }
+    }
+
+    function resetPrices() {
+      displayStandardPrice(null);
+      displayCustomerPrice(null);
+      updateSuggestedPrice(null, null);
+    }
+
+    async function onProductChange() {
+      const productId = productSelect.value;
+      if (!productId) {
+        customerSelect.disabled = true;
+        resetPrices();
+        return;
+      }
+
+      customerSelect.disabled = false;
+      const stdData = await fetchStandardPrice(productId);
+      displayStandardPrice(stdData);
+      displayCustomerPrice(null);
+      updateSuggestedPrice(null, stdData);
+    }
+
+    async function onCustomerChange() {
+      const productId = productSelect.value;
+      const customerId = customerSelect.value;
+      if (!productId || !customerId) {
+        displayCustomerPrice(null);
+        updateSuggestedPrice(null, stdPriceCache);
+        return;
+      }
+
+      const custData = await fetchCustomerPrice(productId, customerId);
+      const found = displayCustomerPrice(custData);
+      updateSuggestedPrice(found ? custData : null, stdPriceCache);
+    }
+
+    function addQuoteItem() {
+      const productId = productSelect.value;
+      const suggestedPrice = suggestedPriceSpan.textContent;
+      const currency = suggestedCurrencySpan.textContent;
+
+      if (!productId || suggestedPrice === '-' || !currency) {
+        alert("Cannot add item: Missing product or suggested price.");
+        return;
+      }
+
+      if (items.find(item => item.productId === productId)) {
+        alert("Item already added.");
+        return;
+      }
+
+      const price = parseFloat(suggestedPrice);
+      const item = {
+        productId,
+        finalPrice: price,
+        currency,
+        quantity: 1,
+        subtotal: price
+      };
+      items.push(item);
+      renderItems();
+    }
+
+    function renderItems() {
+      itemTableBody.innerHTML = '';
+      items.forEach((item, idx) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.productId}</td>
+          <td><input type="number" min="0" step="0.01" value="${item.finalPrice}" onchange="updateFinalPrice(${idx}, this.value)" /></td>
+          <td>${item.currency}</td>
+          <td><input type="number" min="1" step="1" value="${item.quantity}" onchange="updateQuantity(${idx}, this.value)" /></td>
+          <td id="subtotal-${idx}">${item.subtotal.toFixed(2)}</td>
+          <td><button onclick="removeItem(${idx})">Delete</button></td>
+        `;
+        itemTableBody.appendChild(row);
+      });
+    }
+
+    function updateFinalPrice(index, value) {
+      const price = parseFloat(value);
+      if (!isNaN(price) && price >= 0) {
+        items[index].finalPrice = price;
+        updateSubtotal(index);
+      }
+    }
+
+    function updateQuantity(index, value) {
+      const qty = parseInt(value);
+      if (!isNaN(qty) && qty > 0) {
+        items[index].quantity = qty;
+        updateSubtotal(index);
+      }
+    }
+
+    function updateSubtotal(index) {
+      const item = items[index];
+      item.subtotal = item.finalPrice * item.quantity;
+      document.getElementById(`subtotal-${index}`).textContent = item.subtotal.toFixed(2);
+    }
+
+    function removeItem(index) {
+      items.splice(index, 1);
+      renderItems();
+    }
+
+    productSelect.addEventListener('change', onProductChange);
+    customerSelect.addEventListener('change', onCustomerChange);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadProducts();
+      loadCustomers();
+      customerSelect.disabled = true;
+      resetPrices();
+    });
+  </script>
+</body>
+</html>
