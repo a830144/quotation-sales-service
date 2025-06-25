@@ -27,7 +27,7 @@ public class QuotationItemService {
         QuotationHeader header = headerRepo.findById(quoteId)
                 .orElseThrow(() -> new IllegalArgumentException("Quote not found"));
 
-        item.setQuotation(header);
+        item.setQuotationHeader(header);
         return itemRepo.save(item);
     }
 

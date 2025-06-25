@@ -100,7 +100,7 @@ public class QuotationHeader {
     public void setItems(List<QuotationItem> items) {
         this.items = items;
         if (items != null) {
-            items.forEach(item -> item.setQuotation(this)); // maintain back-reference
+            items.forEach(item -> item.setQuotationHeader(this)); // maintain back-reference
         }
     }
 

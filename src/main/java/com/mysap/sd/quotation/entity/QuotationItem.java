@@ -16,12 +16,13 @@ public class QuotationItem {
 		this.id = id;
 	}
 
-	public QuotationHeader getQuotation() {
-		return quotation;
+
+	public QuotationHeader getQuotationHeader() {
+		return quotationHeader;
 	}
 
-	public void setQuotation(QuotationHeader quotation) {
-		this.quotation = quotation;
+	public void setQuotationHeader(QuotationHeader quotationHeader) {
+		this.quotationHeader = quotationHeader;
 	}
 
 	public String getProductId() {
@@ -94,7 +95,7 @@ public class QuotationItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quote_id", nullable = false)
-    private QuotationHeader quotation;
+    private QuotationHeader quotationHeader;
 
     @Column(name = "product_id", nullable = false, length = 50)
     private String productId;
