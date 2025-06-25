@@ -20,7 +20,7 @@ public class QuotationItemService {
     private QuotationHeaderRepository headerRepo;
 
     public List<QuotationItem> getItemsByQuoteId(Long quoteId) {
-        return itemRepo.findByQuotation_Id(quoteId);
+        return itemRepo.findByQuotationHeader_Id(quoteId);
     }
 
     public QuotationItem createItem(Long quoteId, QuotationItem item) {
