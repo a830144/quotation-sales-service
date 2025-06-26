@@ -1,74 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Quotation Builder with Toggle View</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <style>
-    .section { display: none; }
-    .active { display: block; }
-    .nav-buttons { margin-bottom: 20px; }
-    .nav-buttons button { margin-right: 10px; }
-    table { border-collapse: collapse; width: 100%; }
-    table, th, td { border: 1px solid black; }
-    th, td { padding: 8px; text-align: left; }
-  </style>
+<meta charset="UTF-8" />
+<title>Quotation Builder with Toggle View</title>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+.section {
+	display: none;
+}
+
+.active {
+	display: block;
+}
+
+.nav-buttons {
+	margin-bottom: 20px;
+}
+
+.nav-buttons button {
+	margin-right: 10px;
+}
+
+table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+table, th, td {
+	border: 1px solid black;
+}
+
+th, td {
+	padding: 8px;
+	text-align: left;
+}
+</style>
 </head>
 <body>
-  <h2>Quotation Builder</h2>
+	<h2>Quotation Builder</h2>
 
-  <div class="nav-buttons">
-    <button onclick="switchView('view')">📄 View Quotations</button>
-    <button onclick="switchView('add')">➕ Add Quotation</button>
-  </div>
+	<div class="nav-buttons">
+		<button onclick="switchView('view')">📄 View Quotations</button>
+		<button onclick="switchView('add')">➕ Add Quotation</button>
+	</div>
 
-  <!-- View Quotations Section (default active) -->
-  <div id="viewSection" class="section active">
-    <h3>Existing Quotations</h3>
-    <table id="quotationList">
-      <thead>
-        <tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Action</th></tr>
-      </thead>
-      <tbody id="quotationListBody"></tbody>
-    </table>
-  </div>
+	<!-- View Quotations Section (default active) -->
+	<div id="viewSection" class="section active">
+		<h3>Existing Quotations</h3>
+		<table id="quotationList">
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Customer</th>
+					<th>Date</th>
+					<th>Status</th>
+					<th>Action</th>
+				</tr>
+			</thead>
+			<tbody id="quotationListBody"></tbody>
+		</table>
+	</div>
 
-  <!-- Add Quotation Section -->
-  <div id="addSection" class="section">
-    <label for="productSelect">Select Product:</label>
-    <select id="productSelect"><option value="">-- Select a product --</option></select>
+	<!-- Add Quotation Section -->
+	<div id="addSection" class="section">
+		<label for="productSelect">Select Product:</label> <select
+			id="productSelect"><option value="">-- Select a
+				product --</option></select> <label for="customerSelect" style="margin-left: 20px;">Select
+			Customer:</label> <select id="customerSelect" disabled><option
+				value="">-- Select a customer --</option></select>
 
-    <label for="customerSelect" style="margin-left: 20px;">Select Customer:</label>
-    <select id="customerSelect" disabled><option value="">-- Select a customer --</option></select>
+		<div id="quotationContent">
+			<div style="margin-top: 20px;">
+				<h3>Price Information</h3>
+				<div>
+					<strong>Standard Price:</strong> <span id="stdPrice">-</span> <span
+						id="stdCurrency"></span> (Valid: <span id="stdValidFrom">-</span>
+					to <span id="stdValidTo">-</span>)
+				</div>
+				<div style="margin-top: 10px;">
+					<strong>Customer Price:</strong> <span id="custPrice">-</span> <span
+						id="custCurrency"></span> (Valid: <span id="custValidFrom">-</span>
+					to <span id="custValidTo">-</span>)
+				</div>
+				<div style="margin-top: 15px; font-weight: bold; color: green;">
+					Suggested Price: <span id="suggestedPrice">-</span> <span
+						id="suggestedCurrency"></span>
+				</div>
+				<div style="color: red; margin-top: 5px;" id="priceWarning"></div>
+			</div>
 
-    <div id="quotationContent">
-      <div style="margin-top:20px;">
-        <h3>Price Information</h3>
-        <div><strong>Standard Price:</strong> <span id="stdPrice">-</span> <span id="stdCurrency"></span> (Valid: <span id="stdValidFrom">-</span> to <span id="stdValidTo">-</span>)</div>
-        <div style="margin-top:10px;"><strong>Customer Price:</strong> <span id="custPrice">-</span> <span id="custCurrency"></span> (Valid: <span id="custValidFrom">-</span> to <span id="custValidTo">-</span>)</div>
-        <div style="margin-top:15px; font-weight: bold; color: green;">Suggested Price: <span id="suggestedPrice">-</span> <span id="suggestedCurrency"></span></div>
-        <div style="color:red; margin-top:5px;" id="priceWarning"></div>
-      </div>
+			<div style="margin-top: 30px;">
+				<h3>Quotation Items</h3>
+				<table id="itemTable">
+					<thead>
+						<tr>
+							<th>Product ID</th>
+							<th>Final Price</th>
+							<th>Currency</th>
+							<th>Quantity</th>
+							<th>Subtotal</th>
+						</tr>
+					</thead>
+					<tbody id="itemTableBody"></tbody>
+				</table>
+			</div>
 
-      <div style="margin-top:30px;">
-        <h3>Quotation Items</h3>
-        <table id="itemTable">
-          <thead>
-            <tr><th>Product ID</th><th>Final Price</th><th>Currency</th><th>Quantity</th><th>Subtotal</th></tr>
-          </thead>
-          <tbody id="itemTableBody"></tbody>
-        </table>
-      </div>
+			<div style="margin-top: 20px;">
+				<button onclick="addQuoteItem()">Add to Quotation</button>
+				<button onclick="saveDraft()">💾 Save Draft</button>
+				<button onclick="downloadPDF()">📄 Download PDF</button>
+			</div>
+		</div>
+	</div>
 
-      <div style="margin-top:20px;">
-        <button onclick="addQuoteItem()">Add to Quotation</button>
-        <button onclick="saveDraft()">💾 Save Draft</button>
-        <button onclick="downloadPDF()">📄 Download PDF</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
+	<script>
     function switchView(mode) {
       document.getElementById('viewSection').classList.remove('active');
       document.getElementById('addSection').classList.remove('active');
@@ -77,31 +123,66 @@
     }
 
     async function loadAllQuotations() {
-      try {
-        const res = await fetch('http://localhost:8083/quotations');
-        const list = await res.json();
-        console.log("Fetched quotations:", list);
-        const body = document.getElementById('quotationListBody');
-        body.innerHTML = '';
-        list.forEach(q => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${q.id}</td>
-            <td>${q.customerId}</td>
-            <td>${q.quoteDate}</td>
-            <td>${q.status}</td>
-            <td><button onclick="alert('Details TBD')">View</button></td>
-          `;
-          body.appendChild(row);
-        });
-      } catch (err) {
-        alert("Failed to load quotations: " + err.message);
-      }
-    }
+    	  const res = await fetch('http://localhost:8083/quotations');
+    	  const list = await res.json();
+    	  const body = document.getElementById('quotationListBody');
+    	  body.innerHTML = '';
+
+    	  list.forEach(q => {
+    	    const row = document.createElement('tr');
+    	    row.innerHTML = `
+    	      <td>${q.id}</td>
+    	      <td>${q.customerId}</td>
+    	      <td>${q.quoteDate}</td>
+    	      <td>${q.status}</td>
+    	      <td>
+    	        <button onclick="approveQuotation(${q.id})" ${q.status !== 'DRAFT' ? 'disabled' : ''}>✔ Approve</button>
+    	        <button onclick="orderQuotation(${q.id})" ${q.status !== 'APPROVED' ? 'disabled' : ''}>📦 Order</button>
+    	      </td>
+    	    `;
+    	    body.appendChild(row);
+    	  });
+    	}
+    async function approveQuotation(id) {
+    	  const confirmed = confirm(`Approve quotation #${id}?`);
+    	  if (!confirmed) return;
+
+    	  const res = await fetch(`http://localhost:8083/quotations/${id}`, {
+    	    method: 'PUT',
+    	    headers: { 'Content-Type': 'application/json' },
+    	    body: JSON.stringify({ status: 'APPROVED' })
+    	  });
+
+    	  if (res.ok) {
+    	    alert("Quotation approved.");
+    	    loadAllQuotations(); // refresh table
+    	  } else {
+    	    alert("Failed to approve.");
+    	  }
+    	}
+
+    	async function orderQuotation(id) {
+    	  const confirmed = confirm(`Place order for quotation #${id}?`);
+    	  if (!confirmed) return;
+
+    	  const res = await fetch(`http://localhost:8083/quotations/${id}`, {
+    	    method: 'PUT',
+    	    headers: { 'Content-Type': 'application/json' },
+    	    body: JSON.stringify({ status: 'ORDERED' })
+    	  });
+
+    	  if (res.ok) {
+    	    alert("Quotation marked as ordered.");
+    	    loadAllQuotations(); // refresh table
+    	  } else {
+    	    alert("Failed to mark as ordered.");
+    	  }
+    	}
+
   </script>
 
-  <!-- Reuse your existing quotation logic -->
-  <script>
+	<!-- Reuse your existing quotation logic -->
+	<script>
     const productSelect = document.getElementById('productSelect');
     const customerSelect = document.getElementById('customerSelect');
     const itemTableBody = document.getElementById('itemTableBody');

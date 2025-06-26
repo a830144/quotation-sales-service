@@ -31,6 +31,7 @@ public class QuotationHeaderController {
         return ResponseEntity.ok(service.create(header));
     }
 
+    @CrossOrigin(origins = "*") // or specific origin
     @GetMapping("/{id}")
     public ResponseEntity<QuotationHeader> getById(@PathVariable Long id) {
         return service.getById(id)
@@ -43,7 +44,9 @@ public class QuotationHeaderController {
     public List<QuotationHeader> getAll() {
         return service.getAll();
     }
-
+    
+    
+    @CrossOrigin(origins = "*") // or specific origin
     @PutMapping("/{id}")
     public ResponseEntity<QuotationHeader> update(@PathVariable Long id, @RequestBody QuotationHeader header) {
         return ResponseEntity.ok(service.update(id, header));
