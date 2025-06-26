@@ -22,8 +22,8 @@
     <button onclick="switchView('add')">➕ Add Quotation</button>
   </div>
 
-  <!-- View Quotations Section -->
-  <div id="viewSection" class="section">
+  <!-- View Quotations Section (default active) -->
+  <div id="viewSection" class="section active">
     <h3>Existing Quotations</h3>
     <table id="quotationList">
       <thead>
@@ -77,25 +77,30 @@
     }
 
     async function loadAllQuotations() {
-      const res = await fetch('http://localhost:8083/quotations');
-      const list = await res.json();
-      const body = document.getElementById('quotationListBody');
-      body.innerHTML = '';
-      list.forEach(q => {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${q.id}</td><td>${q.customerId}</td><td>${q.quoteDate}</td><td>${q.status}</td><td><button onclick="alert('No detail yet')">View</button></td>`;
-        body.appendChild(row);
-      });
+      try {
+        const res = await fetch('http://localhost:8083/quotations');
+        const list = await res.json();
+        console.log("Fetched quotations:", list);
+        const body = document.getElementById('quotationListBody');
+        body.innerHTML = '';
+        list.forEach(q => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${q.id}</td>
+            <td>${q.customerId}</td>
+            <td>${q.quoteDate}</td>
+            <td>${q.status}</td>
+            <td><button onclick="alert('Details TBD')">View</button></td>
+          `;
+          body.appendChild(row);
+        });
+      } catch (err) {
+        alert("Failed to load quotations: " + err.message);
+      }
     }
-
-    // your existing JS logic for addQuoteItem, saveDraft, downloadPDF, etc...
-
-    window.addEventListener('DOMContentLoaded', () => {
-      switchView('view');
-      loadProducts();
-      loadCustomers();
-    });
   </script>
+
+  <!-- Reuse your existing quotation logic -->
   <script>
     const productSelect = document.getElementById('productSelect');
     const customerSelect = document.getElementById('customerSelect');
@@ -325,6 +330,7 @@
         }
 
         alert("Draft saved.");
+        switchView('view'); // Refresh view list after save
       } catch (err) {
         alert("Error: " + err.message);
       }
@@ -345,9 +351,9 @@
     productSelect.addEventListener('change', onProductChange);
     customerSelect.addEventListener('change', onCustomerChange);
 
-    window.addEventListener('DOMContentLoaded', () => {
-      customerSelect.disabled = true;
-      resetPrices();
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadProducts();
+      await loadCustomers();
     });
   </script>
 </body>
