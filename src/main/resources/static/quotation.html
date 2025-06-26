@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Quotation Builder with Price Guide</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
   <h2>Quotation Builder</h2>
@@ -19,48 +20,53 @@
     <option value="">-- Select a customer --</option>
   </select>
 
-  <div id="priceInfo" style="margin-top:20px;">
-    <h3>Price Information</h3>
-    <div>
-      <strong>Standard Price:</strong>
-      <span id="stdPrice">-</span> <span id="stdCurrency"></span>
-      (Valid: <span id="stdValidFrom">-</span> to <span id="stdValidTo">-</span>)
+  <!-- Quotation content to export -->
+  <div id="quotationContent">
+    <div id="priceInfo" style="margin-top:20px;">
+      <h3>Price Information</h3>
+      <div>
+        <strong>Standard Price:</strong>
+        <span id="stdPrice">-</span> <span id="stdCurrency"></span>
+        (Valid: <span id="stdValidFrom">-</span> to <span id="stdValidTo">-</span>)
+      </div>
+      <div style="margin-top:10px;">
+        <strong>Customer Price:</strong>
+        <span id="custPrice">-</span> <span id="custCurrency"></span>
+        (Valid: <span id="custValidFrom">-</span> to <span id="custValidTo">-</span>)
+      </div>
+      <div style="margin-top:15px; font-weight: bold; color: green;" id="suggestedSection">
+        Suggested Price: <span id="suggestedPrice">-</span> <span id="suggestedCurrency"></span>
+      </div>
+      <div style="color:red; margin-top:5px;" id="priceWarning"></div>
     </div>
-    <div style="margin-top:10px;">
-      <strong>Customer Price:</strong>
-      <span id="custPrice">-</span> <span id="custCurrency"></span>
-      (Valid: <span id="custValidFrom">-</span> to <span id="custValidTo">-</span>)
+
+    <div style="margin-top:30px;">
+      <h3>Quotation Items</h3>
+      <table border="1" width="800" id="itemTable">
+        <thead>
+          <tr>
+            <th>Product ID</th>
+            <th>Final Price</th>
+            <th>Currency</th>
+            <th>Quantity</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="itemTableBody"></tbody>
+      </table>
     </div>
-    <div style="margin-top:15px; font-weight: bold; color: green;" id="suggestedSection">
-      Suggested Price: <span id="suggestedPrice">-</span> <span id="suggestedCurrency"></span>
-    </div>
-    <div style="color:red; margin-top:5px;" id="priceWarning"></div>
   </div>
 
   <div style="margin-top:30px;">
     <button onclick="addQuoteItem()">Add to Quotation</button>
-  </div>
-
-  <div style="margin-top:30px;">
-    <h3>Quotation Items</h3>
-    <table border="1" width="800" id="itemTable">
-      <thead>
-        <tr>
-          <th>Product ID</th>
-          <th>Final Price</th>
-          <th>Currency</th>
-          <th>Quantity</th>
-          <th>Subtotal</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="itemTableBody"></tbody>
-    </table>
+    <button onclick="saveDraft()">💾 Save Draft</button>
+    <button onclick="downloadPDF()">📄 Download PDF</button>
   </div>
 
   <script>
     const productSelect = document.getElementById('productSelect');
     const customerSelect = document.getElementById('customerSelect');
+    const itemTableBody = document.getElementById('itemTableBody');
 
     const stdPriceSpan = document.getElementById('stdPrice');
     const stdCurrencySpan = document.getElementById('stdCurrency');
@@ -75,8 +81,6 @@
     const suggestedPriceSpan = document.getElementById('suggestedPrice');
     const suggestedCurrencySpan = document.getElementById('suggestedCurrency');
     const priceWarningDiv = document.getElementById('priceWarning');
-
-    const itemTableBody = document.getElementById('itemTableBody');
 
     let stdPriceCache = null;
     let items = [];
@@ -163,7 +167,7 @@
       } else {
         suggestedPriceSpan.textContent = '-';
         suggestedCurrencySpan.textContent = '';
-        priceWarningDiv.textContent = '⚠️ No standard or customer price found. Please configure in Price Guide.';
+        priceWarningDiv.textContent = '⚠️ No price found.';
       }
     }
 
@@ -208,18 +212,19 @@
       const currency = suggestedCurrencySpan.textContent;
 
       if (!productId || suggestedPrice === '-' || !currency) {
-        alert("Cannot add item: Missing product or suggested price.");
+        alert("Missing product or price.");
         return;
       }
 
       if (items.find(item => item.productId === productId)) {
-        alert("Item already added.");
+        alert("Already added.");
         return;
       }
 
       const price = parseFloat(suggestedPrice);
       const item = {
         productId,
+        suggestedPrice: price,
         finalPrice: price,
         currency,
         quantity: 1,
@@ -235,41 +240,73 @@
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${item.productId}</td>
-          <td><input type="number" min="0" step="0.01" value="${item.finalPrice}" onchange="updateFinalPrice(${idx}, this.value)" /></td>
+          <td>${item.finalPrice.toFixed(2)}</td>
           <td>${item.currency}</td>
-          <td><input type="number" min="1" step="1" value="${item.quantity}" onchange="updateQuantity(${idx}, this.value)" /></td>
-          <td id="subtotal-${idx}">${item.subtotal.toFixed(2)}</td>
-          <td><button onclick="removeItem(${idx})">Delete</button></td>
+          <td>${item.quantity}</td>
+          <td>${(item.finalPrice * item.quantity).toFixed(2)}</td>
         `;
         itemTableBody.appendChild(row);
       });
     }
 
-    function updateFinalPrice(index, value) {
-      const price = parseFloat(value);
-      if (!isNaN(price) && price >= 0) {
-        items[index].finalPrice = price;
-        updateSubtotal(index);
+    async function saveDraft() {
+      const customerId = customerSelect.value;
+      if (!customerId || items.length === 0) {
+        alert("Please select customer and items.");
+        return;
+      }
+
+      const headerData = {
+        customerId,
+        quoteDate: new Date().toISOString().split('T')[0],
+        status: "DRAFT"
+      };
+
+      try {
+        const headerRes = await fetch(`http://localhost:8083/quotations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(headerData)
+        });
+
+        if (!headerRes.ok) throw new Error("Header save failed.");
+        const savedHeader = await headerRes.json();
+        const quoteId = savedHeader.id;
+
+        for (const item of items) {
+          const itemPayload = {
+            quotationHeader: { id: quoteId },
+            productId: item.productId,
+            quantity: item.quantity,
+            suggestedPrice: item.suggestedPrice,
+            finalPrice: item.finalPrice,
+            currency: item.currency,
+            subtotal: item.finalPrice * item.quantity
+          };
+          const itemRes = await fetch(`http://localhost:8083/quotation/items/quote/${quoteId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(itemPayload)
+          });
+          if (!itemRes.ok) throw new Error("Item save failed.");
+        }
+
+        alert("Draft saved.");
+      } catch (err) {
+        alert("Error: " + err.message);
       }
     }
 
-    function updateQuantity(index, value) {
-      const qty = parseInt(value);
-      if (!isNaN(qty) && qty > 0) {
-        items[index].quantity = qty;
-        updateSubtotal(index);
-      }
-    }
-
-    function updateSubtotal(index) {
-      const item = items[index];
-      item.subtotal = item.finalPrice * item.quantity;
-      document.getElementById(`subtotal-${index}`).textContent = item.subtotal.toFixed(2);
-    }
-
-    function removeItem(index) {
-      items.splice(index, 1);
-      renderItems();
+    function downloadPDF() {
+      const element = document.getElementById('quotationContent');
+      const opt = {
+        margin:       0.3,
+        filename:     'quotation.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
     }
 
     productSelect.addEventListener('change', onProductChange);

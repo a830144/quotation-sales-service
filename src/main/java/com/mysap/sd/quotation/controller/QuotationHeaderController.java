@@ -38,6 +38,7 @@ public class QuotationHeaderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @CrossOrigin(origins = "*") // or specific origin
     @GetMapping
     public List<QuotationHeader> getAll() {
         return service.getAll();

@@ -15,6 +15,7 @@ public class QuotationItemController {
     @Autowired
     private QuotationItemService service;
 
+    @CrossOrigin(origins = "*") // or specific origin
     @GetMapping("/quote/{quoteId}")
     public List<QuotationItem> getItemsByQuoteId(@PathVariable Long quoteId) {
         return service.getItemsByQuoteId(quoteId);
